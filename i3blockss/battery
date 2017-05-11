@@ -1,0 +1,80 @@
+#!/usr/bin/env node
+const fs = require("fs");
+const path = require("path");
+var spawn = require('child_process').exec;
+var home = process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
+
+const icons = [
+    " ",
+    " ",
+    " ",
+    " ",
+    " ",
+    " "
+];
+
+function exec(command) {
+    return new Promise(function (resolve, reject) {
+        var pro = spawn(command, {}, function(er, stdout){
+		resolve(stdout);
+	})
+    });
+}
+
+function display(short, long, color){
+    console.log(short);
+    console.log(long);
+    console.log(color);
+};
+
+let args = process.argv.splice(2);
+let battery = {};
+battery.name = args[0] || "Battery 0";
+
+exec("acpi -bi | grep \"" + battery.name + "\"")
+	.then(function(data){
+	    let da = data.split("\n").join(", ").replace(/:/g, ",").split(", ").map(
+            e => {
+                let potarray = e.replace(/,/g, ":").split(" ");
+                return potarray.length > 1 ? potarray : potarray[0] || "";
+            }
+        );
+
+        battery.state = da[1];
+        battery.charge = parseInt(da[2]);
+        battery.time = {
+            value: da[3][0],
+            context: da[3][1]
+        };
+        battery.capacity = {
+            designed: {
+                value: da[5][2],
+                unit: da[5][3]
+            },
+            current: {
+                value: da[6][3],
+                unit: da[6][4]
+            },
+            ratio: parseInt(da[6][6])
+        };
+    })
+    .then(_ => {
+        if(process.env.BLOCK_BUTTON == 1){
+            exec(`notify-send -u low -i /usr/share/icons/Paper/48x48/devices/battery.png "${battery.name} ${battery.charge}%" "This battery is ${battery.state.toLowerCase()}(${battery.time.value} ${battery.time.context == "until" ? "until charged" : "remaining"}). This battery's maximum capacity is ${battery.capacity.ratio}%(${battery.capacity.current.value} ${battery.capacity.current.unit}) of it's original ${battery.capacity.designed.value} ${battery.capacity.designed.unit} capacity."`);  
+        };
+        let icon = icons[Math.floor((battery.charge+12)/25)];
+        if(battery.state == "Discharging" && process.env.block_button != 1){
+           display(icon, icon, "");
+           if(battery.charge < 10){
+               exec(`notify-send -u low -i /usr/share/icons/Paper/48x48/notifications/notification-battery-empty.svg "Battery" "Your battery is low (${battery.charge}%)"`);
+               exec(`espeak -ven-us+f2 "Warning! Warning! Your battery is low!"`);
+               process.exit(33);
+           };
+        } else {
+           display(icons[5]+icon, icons[5]+icon, "");
+        };
+    })
+    
+    .catch(console.log)
+;
+

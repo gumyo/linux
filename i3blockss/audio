@@ -1,0 +1,42 @@
+#!/usr/bin/env node
+const fs = require("fs");
+const path = require("path");
+var spawn = require('child_process').exec;
+var home = process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
+
+
+function exec(command) {
+    return new Promise(function (resolve, reject) {
+        var pro = spawn(command, {}, function(err, stdo, stdi){
+            if(err){
+                reject(err);
+            } else {
+                resolve(stdo);
+            }
+        });
+    });
+}
+
+
+if(process.env.BLOCK_BUTTON == 3){
+    exec("pavucontrol &");
+} else if(process.env.BLOCK_BUTTON == 1) {
+    exec('amixer -D pulse get Master')
+        .then(data => {
+            let a = data.split("\n")
+                .splice(-3, 2)
+                .map(e => e.match(/\[.*%]/))
+                .map(e => e[0].substr(1, e[0].length - 2));
+            console.log(`L ${a[0]} R ${a[1]}`);
+        });
+} else {
+    exec('amixer -D pulse get Master')
+        .then(data => {
+            let a = data.split("\n")
+                .splice(-3, 2)
+                .map(e => e.match(/\[.*%]/))
+                .map(e => e[0].substr(1, e[0].length - 2));
+            console.log(` ${a[0]}`);
+        });
+};
+

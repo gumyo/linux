@@ -1,0 +1,12 @@
+#!/usr/bin/env node
+
+var spawn = require('child_process').spawn;
+
+function exec(command) {
+    return new Promise(function (resolve, reject) {
+        var pro = spawn('sh', ['-c', command], {stdio: 'inherit'});
+        pro.on("exit", resolve);
+    });
+}
+
+exec("echo $(xset -q | grep 'Num Lock' | awk -F ' ' '{print $4}')")
